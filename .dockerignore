@@ -1,0 +1,15 @@
+# THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
+#
+# Generated on 2022-09-21T14:24:31Z by kres 943ad34.
+
+**
+!containers
+!maps
+!optional
+!slices
+!value
+!go.mod
+!go.sum
+!.golangci.yml
+!README.md
+!.markdownlint.json
