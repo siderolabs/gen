@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Package ordered contains ordered Pair and Triple types.
-package ordered
+// Package pair contains Pair and Triple types.
+package pair
 
 // Pair is two element tuple.
 type Pair[T1, T2 any] struct {
@@ -19,7 +19,7 @@ func MakePair[T1, T2 any](v1 T1, v2 T2) Pair[T1, T2] {
 	}
 }
 
-// Triple is three element tuple of ordered values.
+// Triple is three element tuple.
 type Triple[T1, T2, T3 any] struct {
 	V1 T1
 	V2 T2
