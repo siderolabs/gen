@@ -148,10 +148,14 @@ func Contains[T any](s []T, fn func(T) bool) bool {
 	return IndexFunc(s, fn) >= 0
 }
 
-// Copy returns a slice of V with the last n elements removed.
+// Copy copies first n elements. If n is greater than the length of the slice, it will copy the whole slice.
 func Copy[S ~[]V, V any](s S, n int) S {
 	if s == nil {
 		return nil
+	}
+
+	if n > len(s) {
+		n = len(s)
 	}
 
 	result := make([]V, n)
