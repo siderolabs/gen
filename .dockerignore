@@ -1,13 +1,17 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-09-21T14:24:31Z by kres 943ad34.
+# Generated on 2022-11-28T15:27:14Z by kres 3ac53a8.
 
-**
+*
+!channel
 !containers
 !maps
 !optional
+!pair
 !slices
 !value
+!xerrors
+!xsync
 !go.mod
 !go.sum
 !.golangci.yml
