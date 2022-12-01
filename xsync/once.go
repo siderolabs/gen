@@ -5,7 +5,9 @@
 // Package xsync contains the additions to std sync package.
 package xsync
 
-import "sync"
+import (
+	"sync"
+)
 
 // Once is small wrapper around [sync.Once]. It stores the result inside.
 type Once[T any] struct {
