@@ -62,7 +62,7 @@ func Filter[S ~[]T, T any](slc S, fn func(T) bool) S {
 		return nil
 	}
 
-	return r
+	return r[:len(r):len(r)]
 }
 
 // FilterInPlace filters the slice in place.
