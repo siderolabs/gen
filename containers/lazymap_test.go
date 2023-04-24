@@ -7,6 +7,7 @@ package containers_test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,6 +133,9 @@ func TestLazyBiMap(t *testing.T) {
 			values = append(values, v)
 		})
 
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+
 		assert.Equal(t, []int{1, 2}, keys)
 		assert.Equal(t, []int{100, 200}, values)
 	})
@@ -226,6 +230,9 @@ func TestLazyMap(t *testing.T) {
 			keys = append(keys, k)
 			values = append(values, v)
 		})
+
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
 
 		assert.Equal(t, []int{4, 5}, keys)
 		assert.Equal(t, []int{400, 500}, values)
