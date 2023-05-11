@@ -14,7 +14,6 @@ import (
 	"github.com/siderolabs/gen/xerrors"
 )
 
-//nolint:unused
 type testTag struct{}
 
 func TestTagged(t *testing.T) {

@@ -163,3 +163,35 @@ func Copy[S ~[]V, V any](s S, n int) S {
 
 	return result
 }
+
+// Clone returns a copy of the slice.
+// The elements are copied using assignment, so this is a shallow clone.
+func Clone[S ~[]E, E any](s S) S {
+	// Preserve nil in case it matters.
+	if s == nil {
+		return nil
+	}
+
+	return append(S([]E{}), s...)
+}
+
+// Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
+func Clip[S ~[]E, E any](s S) S {
+	return s[:len(s):len(s)]
+}
+
+// Grow increases the slice's capacity, if necessary, to guarantee space for
+// another n elements. After Grow(n), at least n elements can be appended
+// to the slice without another allocation. If n is negative or too large to
+// allocate the memory, Grow panics.
+func Grow[S ~[]E, E any](s S, n int) S {
+	if n < 0 {
+		panic("cannot be negative")
+	}
+
+	if n -= cap(s) - len(s); n > 0 {
+		s = append([]E(s)[:cap(s)], make([]E, n)...)[:len(s)]
+	}
+
+	return s
+}

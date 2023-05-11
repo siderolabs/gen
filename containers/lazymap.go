@@ -20,7 +20,7 @@ func (m *LazyBiMap[K, V]) GetOrCreate(key K) (V, error) {
 
 	val, err := m.Creator(key)
 	if err != nil {
-		return *new(V), err //nolint:gocritic
+		return *new(V), err
 	}
 
 	m.biMap.Set(key, val)
@@ -162,7 +162,7 @@ func (m *LazyMap[K, V]) GetOrCreate(key K) (V, error) {
 
 	val, err := m.Creator(key)
 	if err != nil {
-		return *new(V), err //nolint:gocritic
+		return *new(V), err
 	}
 
 	m.dataMap[key] = val

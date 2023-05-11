@@ -95,7 +95,7 @@ func (m *ConcurrentMap[K, V]) RemoveAndGet(key K) (V, bool) {
 	defer m.mx.Unlock()
 
 	if m.m == nil {
-		return *new(V), false //nolint:gocritic
+		return *new(V), false
 	}
 
 	val, ok := m.m[key]
