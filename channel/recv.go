@@ -6,21 +6,22 @@ package channel
 
 import "context"
 
-// RecvWithContext tries to receive a value from a channel which is aborted if the context is canceled.
+// RecvWithContext tries to receive a value from a channel. Operation is aborted if the context is canceled.
 //
-// Function returns true if the value was received, false if the context was canceled or the channel was closed.
-func RecvWithContext[T any](ctx context.Context, ch <-chan T) (T, bool) {
+// Function returns [StateRecv] if the value was received, [StateCancelled] on context cancelation and
+// [StateClosed] if the channel was closed.
+func RecvWithContext[T any](ctx context.Context, ch <-chan T) (T, RecvState) {
 	select {
 	case <-ctx.Done():
 		var zero T
 
-		return zero, false
+		return zero, StateCancelled
 	case val, ok := <-ch:
 		if !ok {
-			return val, false
+			return val, StateClosed
 		}
 
-		return val, true
+		return val, StateRecv
 	}
 }
 
@@ -34,6 +35,8 @@ const (
 	StateEmpty
 	// StateClosed means that the channel was closed.
 	StateClosed
+	// StateCancelled means that the context was canceled.
+	StateCancelled
 )
 
 // TryRecv tries to receive a value from a channel.

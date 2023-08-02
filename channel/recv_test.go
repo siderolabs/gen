@@ -22,15 +22,15 @@ func TestRecvWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	val, ok := channel.RecvWithContext(ctx, ch)
+	val, state := channel.RecvWithContext(ctx, ch)
 	assert.Equal(t, 42, val)
-	assert.True(t, ok)
+	assert.Equal(t, channel.StateRecv, state)
 
 	cancel()
 
-	val, ok = channel.RecvWithContext(ctx, ch)
+	val, state = channel.RecvWithContext(ctx, ch)
 	assert.Zero(t, val)
-	assert.False(t, ok)
+	assert.Equal(t, channel.StateCancelled, state)
 }
 
 func TestRecvWithContextCloseCh(t *testing.T) {
@@ -41,14 +41,14 @@ func TestRecvWithContextCloseCh(t *testing.T) {
 
 	ctx := context.Background()
 
-	val, ok := channel.RecvWithContext(ctx, ch)
+	val, state := channel.RecvWithContext(ctx, ch)
 	assert.Equal(t, 42, val)
-	assert.True(t, ok)
+	assert.Equal(t, channel.StateRecv, state)
 
 	close(ch)
-	val, ok = channel.RecvWithContext(ctx, ch)
+	val, state = channel.RecvWithContext(ctx, ch)
 	assert.Zero(t, val)
-	assert.False(t, ok)
+	assert.Equal(t, channel.StateClosed, state)
 }
 
 func TestTryRecv(t *testing.T) {
