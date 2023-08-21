@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package slices_test
+package xslices_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/siderolabs/gen/slices"
+	"github.com/siderolabs/gen/xslices"
 )
 
 func TestFilterInPlace(t *testing.T) {
@@ -72,7 +72,7 @@ func TestFilterInPlace(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := slices.FilterInPlace(tt.args.slice, func(i int) bool {
+			got := xslices.FilterInPlace(tt.args.slice, func(i int) bool {
 				return i%2 == 0
 			})
 			assert.Equal(t, tt.want, got)
@@ -140,7 +140,7 @@ func TestFilter(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := slices.Filter(tt.args.slice, func(i int) bool {
+			got := xslices.Filter(tt.args.slice, func(i int) bool {
 				return i%2 == 0
 			})
 			assert.Equal(t, tt.want, got)

@@ -9,6 +9,8 @@ import "context"
 // RecvWithContext tries to receive a value from a channel which is aborted if the context is canceled.
 //
 // Function returns true if the value was received, false if the context was canceled or the channel was closed.
+//
+// Deprecated: use plain old select instead.
 func RecvWithContext[T any](ctx context.Context, ch <-chan T) (T, bool) {
 	select {
 	case <-ctx.Done():

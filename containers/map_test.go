@@ -7,12 +7,12 @@ package containers_test
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/siderolabs/gen/containers"
-	"github.com/siderolabs/gen/xsync"
 )
 
 func TestConcurrentMap(t *testing.T) {
@@ -191,31 +191,31 @@ func Example_benchConcurrentMap() {
 	benchResult := testing.Benchmark(func(b *testing.B) {
 		b.ReportAllocs()
 
-		var m containers.ConcurrentMap[int, *xsync.Once[int]]
+		var m containers.ConcurrentMap[int, func() int]
 
 		for i := 0; i < b.N; i++ {
 			variable := 0
 
-			res, _ := m.GetOrCall(10, func() *xsync.Once[int] {
-				return &xsync.Once[int]{}
+			res, _ := m.GetOrCall(10, func() func() int {
+				return sync.OnceValue(func() int {
+					variable++
+
+					return variable
+				})
 			})
 
-			sink = res.Do(func() int {
-				variable++
-
-				return variable
-			})
+			sink = res()
 		}
 	})
 
-	if benchResult.AllocsPerOp() > 0 {
-		fmt.Println("this benchmark should not allocate memory")
+	if allocsPerOp := benchResult.AllocsPerOp(); allocsPerOp > 1 {
+		fmt.Printf("this benchmark should not make more than one allocation, but it makes %d allocations per operation", allocsPerOp)
 	}
 
 	fmt.Println("ok")
+	fmt.Println(sink)
 
 	// Output:
 	// ok
-
-	_ = sink
+	// 1
 }
