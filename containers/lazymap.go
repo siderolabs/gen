@@ -62,6 +62,16 @@ func (m *LazyBiMap[K, V]) ForEach(f func(K, V)) {
 	m.biMap.ForEach(f)
 }
 
+// FilterInPlace calls the given function for each key-value pair and returns a new map with the filtered values.
+func (m *LazyBiMap[K, V]) FilterInPlace(f func(K, V) bool) {
+	m.biMap.FilterInPlace(f)
+}
+
+// Len returns the number of key-value pairs.
+func (m *LazyBiMap[K, V]) Len() int {
+	return m.biMap.Len()
+}
+
 // BiMap (or “bidirectional map”) is a special kind of map that maintains
 // an inverse view of the map while ensuring that no duplicate values are present
 // and a value can always be used safely to get the key back.
@@ -143,6 +153,29 @@ func (m *BiMap[K, V]) ForEach(f func(K, V)) {
 	}
 }
 
+// FilterInPlace calls the given function for each key-value pair and returns a new map with the filtered values.
+func (m *BiMap[K, V]) FilterInPlace(f func(K, V) bool) {
+	if m.k2v == nil {
+		return
+	}
+
+	for k, v := range m.k2v {
+		if !f(k, v) {
+			delete(m.k2v, k)
+			delete(m.v2k, v)
+		}
+	}
+}
+
+// Len returns the number of key-value pairs.
+func (m *BiMap[K, V]) Len() int {
+	if m.k2v == nil {
+		return 0
+	}
+
+	return len(m.k2v)
+}
+
 // LazyMap is like usual map but creates values on demand.
 type LazyMap[K comparable, V comparable] struct {
 	Creator func(K) (V, error)
@@ -196,4 +229,26 @@ func (m *LazyMap[K, V]) ForEach(f func(K, V)) {
 	for k, v := range m.dataMap {
 		f(k, v)
 	}
+}
+
+// FilterInPlace calls the given function for each key-value pair and returns a new map with the filtered values.
+func (m *LazyMap[K, V]) FilterInPlace(f func(K, V) bool) {
+	if m.dataMap == nil {
+		return
+	}
+
+	for k, v := range m.dataMap {
+		if !f(k, v) {
+			delete(m.dataMap, k)
+		}
+	}
+}
+
+// Len returns the number of key-value pairs.
+func (m *LazyMap[K, V]) Len() int {
+	if m.dataMap == nil {
+		return 0
+	}
+
+	return len(m.dataMap)
 }

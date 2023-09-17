@@ -109,6 +109,21 @@ func TestConcurrentMap(t *testing.T) {
 
 		require.Equal(t, 0, m.Len())
 	})
+
+	t.Run("filter map", func(t *testing.T) {
+		t.Parallel()
+
+		m := containers.ConcurrentMap[int, int]{}
+		m.Set(1, 1)
+		m.Set(2, 2)
+		m.Set(3, 3)
+
+		m.FilterInPlace(func(key int, val int) bool {
+			return key == 1 || val == 3
+		})
+
+		require.Equal(t, 2, m.Len())
+	})
 }
 
 func TestConcurrentMap_GetOrCall(t *testing.T) {

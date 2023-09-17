@@ -5,7 +5,7 @@
 package maps_test
 
 import (
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -164,7 +164,7 @@ func TestKeys(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := maps.Keys(tt.args.m)
-			sort.Strings(got)
+			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -213,7 +213,7 @@ func TestKeysFunc(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := maps.KeysFunc(tt.args.m, func(k string) string { return k + " func" })
-			sort.Strings(got)
+			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -262,7 +262,7 @@ func TestToSlice(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := maps.ToSlice(tt.args.m, func(k, v string) string { return k + " " + v })
-			sort.Strings(got)
+			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -311,7 +311,7 @@ func TestValuesFunc(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := maps.ValuesFunc(tt.args.m, func(v string) string { return v })
-			sort.Strings(got)
+			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -415,7 +415,7 @@ func TestIntersection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := maps.Intersect(tt.args.maps...)
-			sort.Ints(got)
+			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
 	}

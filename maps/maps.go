@@ -5,8 +5,10 @@
 // Package maps contains the generic functions for maps.
 package maps
 
-// NOTE(DmitriyMV): I tried to implement this generic functions to be as perfomant as possible.
-// However, I couldn't find a way to do it, since Go (1.18 at the time of writing) cannot inline closures if (generic)
+import "maps"
+
+// NOTE(DmitriyMV): I tried to implement this generic functions to be as performant as possible.
+// However, I couldn't find any way to do it, since Go (1.18 at the time of writing) cannot inline closures if (generic)
 // function, which accepts the closure, was not inlined itself.
 // And inlining budget of 80 is quite small, since most of it is going towards closure call.
 // Somewhat relevant issue: https://github.com/golang/go/issues/41988
@@ -142,7 +144,7 @@ func Intersect[K comparable](maps ...map[K]struct{}) []K {
 
 // Filter returns a map containing all the elements of m that satisfy fn.
 func Filter[M ~map[K]V, K comparable, V any](m M, fn func(K, V) bool) M {
-	// NOTE(DmitriyMV): We use type parameter M here to return exactly the same tyoe as the input map.
+	// NOTE(DmitriyMV): We use type parameter M here to return exactly the same type as the input map.
 	if len(m) == 0 {
 		return nil
 	}
@@ -170,7 +172,7 @@ func FilterInPlace[M ~map[K]V, K comparable, V any](m M, fn func(K, V) bool) M {
 		return m
 	}
 
-	// NOTE(DmitriyMV): We use type parameter M here to return exactly the same tyoe as the input map.
+	// NOTE(DmitriyMV): We use type parameter M here to return exactly the same type of map as the input map.
 	for k, v := range m {
 		if !fn(k, v) {
 			delete(m, k)
@@ -182,34 +184,20 @@ func FilterInPlace[M ~map[K]V, K comparable, V any](m M, fn func(K, V) bool) M {
 }
 
 // Clear removes all entries from m, leaving it empty.
-func Clear[M ~map[K]V, K comparable, V any](m M) {
-	for k := range m {
-		delete(m, k)
-	}
-}
+//
+// Deprecated: Use built-in clear function instead.
+func Clear[M ~map[K]V, K comparable, V any](m M) { clear(m) }
 
 // Clone returns a copy of m.  This is a shallow clone:
 // the new keys and values are set using ordinary assignment.
-func Clone[M ~map[K]V, K comparable, V any](m M) M {
-	// Preserve nil in case it matters.
-	if m == nil {
-		return nil
-	}
-
-	r := make(M, len(m))
-	for k, v := range m {
-		r[k] = v
-	}
-
-	return r
-}
+//
+// Deprecated: Use [maps.Clone] function instead.
+func Clone[M ~map[K]V, K comparable, V any](m M) M { return maps.Clone(m) }
 
 // Copy copies all key/value pairs in src adding them to dst.
 // When a key in src is already present in dst,
 // the value in dst will be overwritten by the value associated
 // with the key in src.
-func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
-	for k, v := range src {
-		dst[k] = v
-	}
-}
+//
+// Deprecated: Use [maps.Copy] instead.
+func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) { maps.Copy(dst, src) }

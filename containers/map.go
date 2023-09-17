@@ -114,6 +114,22 @@ func (m *ConcurrentMap[K, V]) ForEach(f func(K, V)) {
 	}
 }
 
+// FilterInPlace calls the given function for each key-value pair and removes the key-value pair if the function returns false.
+func (m *ConcurrentMap[K, V]) FilterInPlace(f func(K, V) bool) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+
+	if m.m == nil {
+		return
+	}
+
+	for k, v := range m.m {
+		if !f(k, v) {
+			delete(m.m, k)
+		}
+	}
+}
+
 // Len returns the number of elements in the map.
 func (m *ConcurrentMap[K, V]) Len() int {
 	m.mx.Lock()
@@ -127,9 +143,7 @@ func (m *ConcurrentMap[K, V]) Clear() {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 
-	for k := range m.m {
-		delete(m.m, k)
-	}
+	clear(m.m)
 }
 
 // Reset resets the underlying map.

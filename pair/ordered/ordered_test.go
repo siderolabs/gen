@@ -7,7 +7,7 @@ package ordered_test
 import (
 	"math"
 	"math/rand"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -38,9 +38,8 @@ func TestTriple(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		a := append([]ordered.Triple[int, string, float64](nil), expectedSlice...)
 		rnd.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
-		sort.Slice(a, func(i, j int) bool {
-			return a[i].LessThan(a[j])
-		})
+
+		slices.SortFunc(a, func(i, j ordered.Triple[int, string, float64]) int { return i.Compare(j) })
 		require.Equal(t, expectedSlice, a, "failed with seed %d iteration %d", seed, i)
 	}
 }
