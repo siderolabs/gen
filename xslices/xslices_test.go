@@ -72,9 +72,11 @@ func TestFilterInPlace(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := xslices.FilterInPlace(tt.args.slice, func(i int) bool {
 				return i%2 == 0
 			})
+
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -140,9 +142,9 @@ func TestFilter(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := xslices.Filter(tt.args.slice, func(i int) bool {
-				return i%2 == 0
-			})
+
+			got := xslices.Filter(tt.args.slice, func(i int) bool { return i%2 == 0 })
+
 			assert.Equal(t, tt.want, got)
 		})
 	}

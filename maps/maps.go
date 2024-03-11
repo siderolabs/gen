@@ -5,8 +5,6 @@
 // Package maps contains the generic functions for maps.
 package maps
 
-import "maps"
-
 // NOTE(DmitriyMV): I tried to implement this generic functions to be as performant as possible.
 // However, I couldn't find any way to do it, since Go (1.18 at the time of writing) cannot inline closures if (generic)
 // function, which accepts the closure, was not inlined itself.
@@ -182,22 +180,3 @@ func FilterInPlace[M ~map[K]V, K comparable, V any](m M, fn func(K, V) bool) M {
 	// We return original map even if we filtered everything out unlike Filter function.
 	return m
 }
-
-// Clear removes all entries from m, leaving it empty.
-//
-// Deprecated: Use built-in clear function instead.
-func Clear[M ~map[K]V, K comparable, V any](m M) { clear(m) }
-
-// Clone returns a copy of m.  This is a shallow clone:
-// the new keys and values are set using ordinary assignment.
-//
-// Deprecated: Use [maps.Clone] function instead.
-func Clone[M ~map[K]V, K comparable, V any](m M) M { return maps.Clone(m) }
-
-// Copy copies all key/value pairs in src adding them to dst.
-// When a key in src is already present in dst,
-// the value in dst will be overwritten by the value associated
-// with the key in src.
-//
-// Deprecated: Use [maps.Copy] instead.
-func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) { maps.Copy(dst, src) }

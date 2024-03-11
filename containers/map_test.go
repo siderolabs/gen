@@ -78,9 +78,9 @@ func TestConcurrentMap(t *testing.T) {
 		m.Set(3, 3)
 
 		var count int
-		m.ForEach(func(key int, value int) {
-			count++
-		})
+
+		m.ForEach(func(int, int) { count++ })
+
 		require.Equal(t, 3, count)
 	})
 

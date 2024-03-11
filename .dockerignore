@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2023-08-21T16:35:57Z by kres latest.
+# Generated on 2024-03-11T19:57:58Z by kres latest.
 
 *
 !channel
@@ -9,7 +9,6 @@
 !maps
 !optional
 !pair
-!slices
 !value
 !xerrors
 !xslices

@@ -61,7 +61,9 @@ func TestFilterInPlace(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := maps.FilterInPlace(tt.args.m, func(k, v string) bool { return k == "foo" })
+
+			got := maps.FilterInPlace(tt.args.m, func(k, _ string) bool { return k == "foo" })
+
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -115,7 +117,9 @@ func TestFilter(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := maps.Filter(tt.args.m, func(k, v string) bool { return k == "foo" })
+
+			got := maps.Filter(tt.args.m, func(k, _ string) bool { return k == "foo" })
+
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -163,7 +167,9 @@ func TestKeys(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := maps.Keys(tt.args.m)
+
 			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
@@ -212,7 +218,9 @@ func TestKeysFunc(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := maps.KeysFunc(tt.args.m, func(k string) string { return k + " func" })
+
 			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
@@ -261,7 +269,9 @@ func TestToSlice(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := maps.ToSlice(tt.args.m, func(k, v string) string { return k + " " + v })
+
 			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
@@ -310,7 +320,9 @@ func TestValuesFunc(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := maps.ValuesFunc(tt.args.m, func(v string) string { return v })
+
 			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})
@@ -414,7 +426,9 @@ func TestIntersection(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			got := maps.Intersect(tt.args.maps...)
+
 			slices.Sort(got)
 			assert.Equal(t, tt.want, got)
 		})

@@ -5,51 +5,12 @@
 package channel_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/siderolabs/gen/channel"
 )
-
-func TestRecvWithContext(t *testing.T) {
-	t.Parallel()
-
-	ch := make(chan int, 1)
-	ch <- 42
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	val, ok := channel.RecvWithContext(ctx, ch)
-	assert.Equal(t, 42, val)
-	assert.True(t, ok)
-
-	cancel()
-
-	val, ok = channel.RecvWithContext(ctx, ch)
-	assert.Zero(t, val)
-	assert.False(t, ok)
-}
-
-func TestRecvWithContextCloseCh(t *testing.T) {
-	t.Parallel()
-
-	ch := make(chan int, 1)
-	ch <- 42
-
-	ctx := context.Background()
-
-	val, ok := channel.RecvWithContext(ctx, ch)
-	assert.Equal(t, 42, val)
-	assert.True(t, ok)
-
-	close(ch)
-	val, ok = channel.RecvWithContext(ctx, ch)
-	assert.Zero(t, val)
-	assert.False(t, ok)
-}
 
 func TestTryRecv(t *testing.T) {
 	t.Parallel()

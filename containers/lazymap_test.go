@@ -66,7 +66,9 @@ func TestLazyBiMap(t *testing.T) {
 		create, err := m.GetOrCreate(11)
 		require.NoError(t, err)
 		require.Equal(t, 100, create)
+
 		val, ok := m.Get(1)
+
 		require.False(t, ok)
 		require.Equal(t, 0, val)
 	})
@@ -111,8 +113,7 @@ func TestLazyBiMap(t *testing.T) {
 	})
 
 	t.Run("should iterate over entries", func(t *testing.T) {
-		var keys []int
-		var values []int
+		var keys, values []int
 
 		m.ForEach(func(k int, v int) {
 			keys = append(keys, k)
@@ -141,12 +142,11 @@ func TestLazyBiMap(t *testing.T) {
 	})
 
 	t.Run("should filter entries", func(t *testing.T) {
-		m.FilterInPlace(func(k int, v int) bool {
+		m.FilterInPlace(func(k int, _ int) bool {
 			return k == 1
 		})
 
-		var keys []int
-		var values []int
+		var keys, values []int
 
 		m.ForEach(func(k int, v int) {
 			keys = append(keys, k)
@@ -177,7 +177,7 @@ func TestLazyMap(t *testing.T) {
 		},
 	}
 
-	t.Run("should delete nothing if there is nothing to delete", func(t *testing.T) {
+	t.Run("should delete nothing if there is nothing to delete", func(*testing.T) {
 		m.Remove(0)
 	})
 
@@ -226,8 +226,7 @@ func TestLazyMap(t *testing.T) {
 	})
 
 	t.Run("should iterate over entries", func(t *testing.T) {
-		var keys []int
-		var values []int
+		var keys, values []int
 
 		m.ForEach(func(k int, v int) {
 			keys = append(keys, k)
@@ -256,12 +255,9 @@ func TestLazyMap(t *testing.T) {
 	})
 
 	t.Run("should filter entries", func(t *testing.T) {
-		m.FilterInPlace(func(k int, v int) bool {
-			return k == 4
-		})
+		m.FilterInPlace(func(k int, _ int) bool { return k == 4 })
 
-		var keys []int
-		var values []int
+		var keys, values []int
 
 		m.ForEach(func(k int, v int) {
 			keys = append(keys, k)
