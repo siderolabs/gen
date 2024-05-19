@@ -1,6 +1,7 @@
 module github.com/siderolabs/gen
 
-go 1.22.0 // Starting with Go 1.21 you have to provide the third digit too.
+// Starting with Go 1.21 you have to provide the third digit too.
+go 1.22.0
 
 require github.com/stretchr/testify v1.9.0
 

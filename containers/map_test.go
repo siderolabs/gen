@@ -6,7 +6,7 @@ package containers_test
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"testing"
 
@@ -145,8 +145,8 @@ func parallelGetOrCall(t *testing.T, m *containers.ConcurrentMap[int, int], our,
 
 	oneAnotherGet := false
 
-	for i := 0; i < 10000; i++ {
-		key := int(rand.Int63n(10000))
+	for range 10000 {
+		key := int(rand.Int64N(10000))
 
 		res, ok := m.GetOrCall(key, func() int { return key * our })
 		if ok {
@@ -182,8 +182,8 @@ func parallelGetOrCreate(t *testing.T, m *containers.ConcurrentMap[int, int], ou
 
 	oneAnotherGet := false
 
-	for i := 0; i < 10000; i++ {
-		key := int(rand.Int63n(10000))
+	for range 10000 {
+		key := int(rand.Int64N(10000))
 
 		res, ok := m.GetOrCreate(key, key*our)
 		if ok {

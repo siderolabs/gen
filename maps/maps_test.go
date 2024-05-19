@@ -57,8 +57,6 @@ func TestFilterInPlace(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -113,8 +111,6 @@ func TestFilter(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -163,8 +159,6 @@ func TestKeys(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -214,8 +208,6 @@ func TestKeysFunc(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -265,8 +257,6 @@ func TestToSlice(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -316,8 +306,6 @@ func TestValuesFunc(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -422,8 +410,6 @@ func TestIntersection(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -433,4 +419,84 @@ func TestIntersection(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestKeysAddtional(t *testing.T) {
+	m := generateMap(6)
+
+	keys := maps.Keys(m)
+
+	assert.Equal(t, 6, len(keys))
+	slices.Sort(keys)
+	assert.EqualValues(t, []int{0, 1, 2, 3, 4, 5}, keys)
+}
+
+func TestValuesAddtional(t *testing.T) {
+	m := generateMap(6)
+
+	values := maps.Values(m)
+
+	assert.Equal(t, 6, len(values))
+	slices.Sort(values)
+	assert.EqualValues(t, []int{-5, -4, -3, -2, -1, 0}, values)
+}
+
+var Sink []int
+
+func BenchmarkKeys(b *testing.B) {
+	smallMap := generateMap(10)
+	midMap := generateMap(100)
+	largeMap := generateMap(1000)
+
+	b.Run("small", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Keys(smallMap)
+		}
+	})
+
+	b.Run("mid", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Keys(midMap)
+		}
+	})
+
+	b.Run("large", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Keys(largeMap)
+		}
+	})
+}
+
+func BenchmarkValues(b *testing.B) {
+	smallMap := generateMap(10)
+	midMap := generateMap(100)
+	largeMap := generateMap(1000)
+
+	b.Run("small", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Values(smallMap)
+		}
+	})
+
+	b.Run("mid", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Values(midMap)
+		}
+	})
+
+	b.Run("large", func(b *testing.B) {
+		for range b.N {
+			Sink = maps.Values(largeMap)
+		}
+	})
+}
+
+func generateMap(num int) map[int]int {
+	result := make(map[int]int, num)
+
+	for i := range num {
+		result[i] = -i
+	}
+
+	return result
 }

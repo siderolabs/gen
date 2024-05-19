@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-03-11T19:57:58Z by kres latest.
+# Generated on 2024-05-19T18:27:53Z by kres dccd292.
 
 name: default
 concurrency:
@@ -31,7 +31,7 @@ jobs:
     if: (!startsWith(github.head_ref, 'renovate/') && !startsWith(github.head_ref, 'dependabot/'))
     services:
       buildkitd:
-        image: moby/buildkit:v0.12.5
+        image: moby/buildkit:v0.13.2
         options: --privileged
         ports:
           - 1234:1234
@@ -45,11 +45,12 @@ jobs:
         run: |
           git fetch --prune --unshallow
       - name: Set up Docker Buildx
+        id: setup-buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver: remote
           endpoint: tcp://127.0.0.1:1234
-        timeout-minutes: 1
+        timeout-minutes: 10
       - name: base
         run: |
           make base
@@ -60,8 +61,11 @@ jobs:
         run: |
           make unit-tests-race
       - name: coverage
-        run: |
-          make coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: _out/coverage-unit-tests.txt
+          token: ${{ secrets.CODECOV_TOKEN }}
+        timeout-minutes: 3
       - name: lint
         run: |
           make lint
