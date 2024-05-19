@@ -2,7 +2,7 @@
 
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-05-19T20:59:37Z by kres dccd292.
+# Generated on 2024-05-27T23:26:26Z by kres bcb280a.
 
 ARG TOOLCHAIN
 
@@ -10,16 +10,16 @@ ARG TOOLCHAIN
 FROM scratch AS generate
 
 # runs markdownlint
-FROM docker.io/node:21.7.3-alpine3.19 AS lint-markdown
+FROM docker.io/node:22.2.0-alpine3.19 AS lint-markdown
 WORKDIR /src
-RUN npm i -g markdownlint-cli@0.39.0
+RUN npm i -g markdownlint-cli@0.41.0
 RUN npm i sentences-per-line@0.2.1
 COPY .markdownlint.json .
 COPY ./README.md ./README.md
 RUN markdownlint --ignore "CHANGELOG.md" --ignore "**/node_modules/**" --ignore '**/hack/chglog/**' --rules node_modules/sentences-per-line/index.js .
 
 # base toolchain image
-FROM ${TOOLCHAIN} AS toolchain
+FROM --platform=${BUILDPLATFORM} ${TOOLCHAIN} AS toolchain
 RUN apk --update --no-cache add bash curl build-base protoc protobuf-dev
 
 # build tools
@@ -53,6 +53,7 @@ RUN cd .
 RUN --mount=type=cache,target=/go/pkg go mod download
 RUN --mount=type=cache,target=/go/pkg go mod verify
 COPY ./channel ./channel
+COPY ./concurrent ./concurrent
 COPY ./containers ./containers
 COPY ./ensure ./ensure
 COPY ./maps ./maps

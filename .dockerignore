@@ -1,9 +1,10 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-05-19T20:59:37Z by kres dccd292.
+# Generated on 2024-05-27T12:37:27Z by kres b5844f8.
 
 *
 !channel
+!concurrent
 !containers
 !ensure
 !maps
