@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-05-27T12:37:27Z by kres b5844f8.
+# Generated on 2024-10-17T10:02:24Z by kres 34e72ac.
 
 *
 !channel
@@ -12,6 +12,7 @@
 !pair
 !value
 !xerrors
+!xiter
 !xslices
 !xtesting
 !go.mod
