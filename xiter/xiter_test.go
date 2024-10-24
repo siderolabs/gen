@@ -6,6 +6,7 @@ package xiter_test
 
 import (
 	"fmt"
+	"iter"
 	"maps"
 	"slices"
 	"strconv"
@@ -82,6 +83,11 @@ func Example_with_numbers() {
 		slices.Backward(reverseNumbers),
 	))
 
+	fmt.Println("numbers and numbers with pos should be equal:", xiter.Equal2(
+		slices.All(numbers),
+		slices.All(numbers),
+	))
+
 	fmt.Println("numbers and reverseNumbers are not equal:", !xiter.Equal(
 		xiter.Values(slices.All(numbers)),
 		xiter.Values(slices.All(reverseNumbers)),
@@ -114,6 +120,7 @@ func Example_with_numbers() {
 	// Prime number positions:2,3,5,7,
 	// numbers and rev(reverseNumbers) are equal: true
 	// numbers and rev(reverseNumbers) with pos are not equal: true
+	// numbers and numbers with pos should be equal: true
 	// numbers and reverseNumbers are not equal: true
 	// numbers and rev(reverseNumbers) are equal: true
 	// numbers and rev(reverseNumbers) with pos dropped are equal: true
@@ -195,4 +202,21 @@ func isPrime(n int) bool {
 	}
 
 	return true
+}
+
+func ExampleEmpty() {
+	var it iter.Seq[int] = xiter.Empty
+
+	for v := range it {
+		fmt.Printf("This %d should not be printed\n", v)
+	}
+
+	var it2 iter.Seq2[int, string] = xiter.Empty2
+
+	for v, s := range it2 {
+		fmt.Printf("This %d %s should not be printed\n", v, s)
+	}
+
+	// Output:
+	//
 }

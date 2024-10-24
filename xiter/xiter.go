@@ -220,3 +220,9 @@ func Fold2[K, V, R any](seq iter.Seq2[K, V], initial R, f func(R, K, V) R) R {
 
 	return result
 }
+
+// Empty returns an empty iterator.
+func Empty[V any](func(V) bool) {}
+
+// Empty2 returns an empty iterator.
+func Empty2[V, V2 any](func(V, V2) bool) {}
