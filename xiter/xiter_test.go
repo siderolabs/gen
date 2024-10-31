@@ -6,7 +6,6 @@ package xiter_test
 
 import (
 	"fmt"
-	"iter"
 	"maps"
 	"slices"
 	"strconv"
@@ -18,11 +17,11 @@ import (
 func Example_with_numbers() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
-	oddNumbers := xiter.Filter(xiter.Values(slices.All(numbers)), func(n int) bool { return n%2 == 1 })
-	evenNumbers := xiter.Filter(xiter.Values(slices.All(numbers)), func(n int) bool { return n%2 == 0 })
+	oddNumbers := xiter.Filter(func(n int) bool { return n%2 == 1 }, xiter.Values(slices.All(numbers)))
+	evenNumbers := xiter.Filter(func(n int) bool { return n%2 == 0 }, xiter.Values(slices.All(numbers)))
 
-	fmt.Println("Odd numbers:", xiter.Fold(oddNumbers, 0, func(acc, _ int) int { acc++; return acc }))
-	fmt.Println("Even numbers:", xiter.Fold(evenNumbers, 0, func(acc, _ int) int { acc++; return acc }))
+	fmt.Println("Odd numbers:", xiter.Reduce(func(acc, _ int) int { acc++; return acc }, 0, oddNumbers))
+	fmt.Println("Even numbers:", xiter.Reduce(func(acc, _ int) int { acc++; return acc }, 0, evenNumbers))
 
 	// Print all odd numbers followed by all even numbers
 
@@ -35,8 +34,8 @@ func Example_with_numbers() {
 	// Print all odd numbers followed by all even numbers but with text this time
 
 	for v := range xiter.Map(
-		xiter.Concat(oddNumbers, evenNumbers),
 		func(v int) string { return m[v] },
+		xiter.Concat(oddNumbers, evenNumbers),
 	) {
 		fmt.Print(v, ",")
 	}
@@ -47,7 +46,7 @@ func Example_with_numbers() {
 
 	slc := []string{"1", "2", "3", "NaN"}
 
-	for val, err := range xiter.ToSeq2(xiter.Values(slices.All(slc)), strconv.Atoi) {
+	for val, err := range xiter.ToSeq2(strconv.Atoi, xiter.Values(slices.All(slc))) {
 		if err != nil {
 			fmt.Print(err)
 
@@ -61,11 +60,11 @@ func Example_with_numbers() {
 
 	// Print the positions of prime numbers
 
-	primeNumbers := xiter.Filter2(slices.All(numbers), func(_, n int) bool { return isPrime(n) })
+	primeNumbers := xiter.Filter2(func(_, n int) bool { return isPrime(n) }, slices.All(numbers))
 
 	fmt.Print("Prime number positions:")
 
-	for pos := range xiter.IterKeys(primeNumbers) {
+	for pos := range xiter.Keys(primeNumbers) {
 		fmt.Print(pos, ",")
 	}
 
@@ -94,21 +93,21 @@ func Example_with_numbers() {
 	))
 
 	fmt.Println("numbers and rev(reverseNumbers) are equal:", xiter.EqualFunc(
-		xiter.ToSeq(slices.All(numbers), func(_, v int) int { return v }),
-		xiter.ToSeq(slices.Backward(reverseNumbers), func(_, v int) int { return v }),
 		func(a, b int) bool { return a == b },
+		xiter.ToSeq(func(_, v int) int { return v }, slices.All(numbers)),
+		xiter.ToSeq(func(_, v int) int { return v }, slices.Backward(reverseNumbers)),
 	))
 
 	fmt.Println("numbers and rev(reverseNumbers) with pos dropped are equal:", xiter.EqualFunc2(
+		func(_, a, _, b int) bool { return a == b },
 		slices.All(numbers),
 		slices.Backward(reverseNumbers),
-		func(_, a, _, b int) bool { return a == b },
 	))
 
 	fmt.Println("numbers and reverseNumbers are not equal:", !xiter.EqualFunc(
+		func(a, b int) bool { return a == b },
 		xiter.Values(slices.All(numbers)),
 		xiter.Values(slices.All(reverseNumbers)),
-		func(a, b int) bool { return a == b },
 	))
 
 	// Output:
@@ -128,18 +127,7 @@ func Example_with_numbers() {
 }
 
 func ExampleConcat2() {
-	result := xiter.Fold2(
-		xiter.Map2(
-			xiter.Concat2(maps.All(numbersAndLetters), maps.All(numbersAndLetters2)),
-			func(k, v string) (int64, error) {
-				if v == "number" {
-					return strconv.ParseInt(k, 10, 64)
-				}
-
-				return 0, nil
-			},
-		),
-		0,
+	result := xiter.Reduce2(
 		func(acc int, k int64, v error) int {
 			if v != nil {
 				fmt.Println("Error:", v)
@@ -149,6 +137,17 @@ func ExampleConcat2() {
 
 			return acc + int(k)
 		},
+		0,
+		xiter.Map2(
+			func(k, v string) (int64, error) {
+				if v == "number" {
+					return strconv.ParseInt(k, 10, 64)
+				}
+
+				return 0, nil
+			},
+			xiter.Concat2(maps.All(numbersAndLetters), maps.All(numbersAndLetters2)),
+		),
 	)
 
 	fmt.Println(result)
@@ -204,19 +203,44 @@ func isPrime(n int) bool {
 	return true
 }
 
-func ExampleEmpty() {
-	var it iter.Seq[int] = xiter.Empty
+func Example_single_and_empty() {
+	it := xiter.Single(42)
 
-	for v := range it {
-		fmt.Printf("This %d should not be printed\n", v)
-	}
+	fmt.Println("Found 42 in seq:")
+	fmt.Println(xiter.Find(func(v int) bool { return v == 42 }, it))
 
-	var it2 iter.Seq2[int, string] = xiter.Empty2
+	fmt.Println("Found 43 in seq:")
+	fmt.Println(xiter.Find(func(v int) bool { return v == 43 }, it))
 
-	for v, s := range it2 {
-		fmt.Printf("This %d %s should not be printed\n", v, s)
-	}
+	it = xiter.Empty
+
+	fmt.Println("Found 42 in seq:")
+	fmt.Println(xiter.Find(func(v int) bool { return v == 42 }, it))
+
+	it2 := xiter.Single2(42, 2012)
+
+	fmt.Println("Found 42 and 2012 in seq2:")
+	fmt.Println(xiter.Find2(func(k, v int) bool { return k == 42 && v == 2012 }, it2))
+
+	fmt.Println("Found 43 and 2012 in seq2:")
+	fmt.Println(xiter.Find2(func(k, v int) bool { return k == 43 && v == 2012 }, it2))
+
+	it2 = xiter.Empty2
+
+	fmt.Println("Found 42 and 2012 in seq2:")
+	fmt.Println(xiter.Find2(func(k, v int) bool { return k == 42 && v == 2012 }, it2))
 
 	// Output:
-	//
+	// Found 42 in seq:
+	// 42 true
+	// Found 43 in seq:
+	// 0 false
+	// Found 42 in seq:
+	// 0 false
+	// Found 42 and 2012 in seq2:
+	// 42 2012 true
+	// Found 43 and 2012 in seq2:
+	// 0 0 false
+	// Found 42 and 2012 in seq2:
+	// 0 0 false
 }
