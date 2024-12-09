@@ -8,28 +8,15 @@
 
 //go:build go1.22 && !go1.24 && !nomaptypehash
 
-//nolint:revive,govet,stylecheck,nlreturn,wsl
 package concurrent
 
 import (
-	"math/rand/v2"
 	"unsafe"
 )
 
-// NewHashTrieMap creates a new HashTrieMap for the provided key and value.
-func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
-	var m map[K]V
-
-	mapType := efaceMapOf(m)
-	ht := &HashTrieMap[K, V]{
-		root:    newIndirectNode[K, V](nil),
-		keyHash: mapType._type.Hasher,
-		seed:    uintptr(rand.Uint64()),
-	}
-	return ht
-}
-
 // _MapType is runtime.maptype from runtime/type.go.
+//
+//nolint:govet
 type _MapType struct {
 	_Type
 	Key    *_Type
@@ -44,6 +31,8 @@ type _MapType struct {
 }
 
 // _Type is runtime._type from runtime/type.go.
+//
+//nolint:govet,revive
 type _Type struct {
 	Size_       uintptr
 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
