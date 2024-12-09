@@ -6,28 +6,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//nolint:wsl,testpackage
-package concurrent
+//nolint:wsl
+package concurrent_test
 
 import (
 	"testing"
+
+	cnc "github.com/siderolabs/gen/concurrent"
 )
 
-func BenchmarkHashTrieMapHasherLoadSmall(b *testing.B) {
-	benchmarkHashTrieMapHasherLoad(b, testDataSmall[:])
+func BenchmarkHashTrieMapLoadSmall(b *testing.B) {
+	benchmarkHashTrieMapLoad(b, testDataSmall[:])
 }
 
-func BenchmarkHashTrieMapHasherLoad(b *testing.B) {
-	benchmarkHashTrieMapHasherLoad(b, testData[:])
+func BenchmarkHashTrieMapLoad(b *testing.B) {
+	benchmarkHashTrieMapLoad(b, testData[:])
 }
 
-func BenchmarkHashTrieMapHasherLoadLarge(b *testing.B) {
-	benchmarkHashTrieMapHasherLoad(b, testDataLarge[:])
+func BenchmarkHashTrieMapLoadLarge(b *testing.B) {
+	benchmarkHashTrieMapLoad(b, testDataLarge[:])
 }
 
-func benchmarkHashTrieMapHasherLoad(b *testing.B, data []string) {
+func benchmarkHashTrieMapLoad(b *testing.B, data []string) {
 	b.ReportAllocs()
-	m := NewHashTrieMapHasher[string, int](stringHasher)
+	var m cnc.HashTrieMap[string, int]
 	for i := range data {
 		m.LoadOrStore(data[i], i)
 	}
@@ -44,17 +46,17 @@ func benchmarkHashTrieMapHasherLoad(b *testing.B, data []string) {
 	})
 }
 
-func BenchmarkHashTrieMapHasherLoadOrStore(b *testing.B) {
-	benchmarkHashTrieMapHasherLoadOrStore(b, testData[:])
+func BenchmarkHashTrieMapLoadOrStore(b *testing.B) {
+	benchmarkHashTrieMapLoadOrStore(b, testData[:])
 }
 
-func BenchmarkHashTrieMapHasherLoadOrStoreLarge(b *testing.B) {
-	benchmarkHashTrieMapHasherLoadOrStore(b, testDataLarge[:])
+func BenchmarkHashTrieMapLoadOrStoreLarge(b *testing.B) {
+	benchmarkHashTrieMapLoadOrStore(b, testDataLarge[:])
 }
 
-func benchmarkHashTrieMapHasherLoadOrStore(b *testing.B, data []string) {
+func benchmarkHashTrieMapLoadOrStore(b *testing.B, data []string) {
 	b.ReportAllocs()
-	m := NewHashTrieMapHasher[string, int](stringHasher)
+	var m cnc.HashTrieMap[string, int]
 
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0

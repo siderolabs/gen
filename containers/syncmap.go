@@ -85,5 +85,5 @@ func castOrZero[T any](val any) T {
 		return zero
 	}
 
-	return val.(T) //nolint:forcetypeassert
+	return val.(T) //nolint:errcheck,forcetypeassert
 }

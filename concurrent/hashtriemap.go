@@ -6,7 +6,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//nolint:revive,govet,nakedret,nlreturn,stylecheck,wsl,staticcheck,unused
+// Package concurrent provides hash-trie implementation for concurrent use.
+//
+//nolint:govet,nakedret,nlreturn,predeclared,revive,staticcheck,unused,wastedassign,wsl
 package concurrent
 
 import (
@@ -17,27 +19,51 @@ import (
 	"unsafe"
 )
 
+// NewHashTrieMap creates a new HashTrieMap for the provided key and value.
+func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+	return &HashTrieMap[K, V]{}
+}
+
 // HashTrieMap is an implementation of a concurrent hash-trie. The implementation
 // is designed around frequent loads, but offers decent performance for stores
-// and deletes as well, especially if the map is larger. It's primary use-case is
+// and deletes as well, especially if the map is larger. Its primary use-case is
 // the unique package, but can be used elsewhere as well.
+//
+// The zero HashTrieMap is empty and ready to use.
+// It must not be copied after first use.
 type HashTrieMap[K, V comparable] struct {
-	root    *indirect[K, V]
+	inited  atomic.Uint32
+	initMu  sync.Mutex
+	root    atomic.Pointer[indirect[K, V]]
 	keyHash hashFunc
 	seed    uintptr
 }
 
-// NewHashTrieMapHasher creates a new HashTrieMap for the provided key and value and uses
-// the provided hasher function to hash keys.
-func NewHashTrieMapHasher[K, V comparable](hasher func(*K, maphash.Seed) uintptr) *HashTrieMap[K, V] {
-	ht := &HashTrieMap[K, V]{
-		root: newIndirectNode[K, V](nil),
-		keyHash: func(pointer unsafe.Pointer, u uintptr) uintptr {
-			return hasher((*K)(pointer), seedToSeed(u))
-		},
-		seed: uintptr(rand.Uint64()),
+func (ht *HashTrieMap[K, V]) init() {
+	if ht.inited.Load() == 0 {
+		ht.initSlow()
 	}
-	return ht
+}
+
+//go:noinline
+func (ht *HashTrieMap[K, V]) initSlow() {
+	ht.initMu.Lock()
+	defer ht.initMu.Unlock()
+
+	if ht.inited.Load() != 0 {
+		// Someone got to it while we were waiting.
+		return
+	}
+
+	// Set up root node, derive the hash function for the key, and the
+	// equal function for the value, if any.
+	var m map[K]V
+	mapType := efaceMapOf(m)._type
+	ht.root.Store(newIndirectNode[K, V](nil))
+	ht.keyHash = mapType.Hasher
+	ht.seed = uintptr(rand.Uint64())
+
+	ht.inited.Store(1)
 }
 
 type hashFunc func(unsafe.Pointer, uintptr) uintptr
@@ -46,9 +72,10 @@ type hashFunc func(unsafe.Pointer, uintptr) uintptr
 // value is present.
 // The ok result indicates whether value was found in the map.
 func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
+	ht.init()
 	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 
-	i := ht.root
+	i := ht.root.Load()
 	hashShift := 8 * ptrSize
 	for hashShift != 0 {
 		hashShift -= nChildrenLog2
@@ -69,6 +96,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 // Otherwise, it stores and returns the given value.
 // The loaded result is true if the value was loaded, false if stored.
 func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool) {
+	ht.init()
 	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 	var i *indirect[K, V]
 	var hashShift uint
@@ -76,8 +104,9 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 	var n *node[K, V]
 	for {
 		// Find the key or a candidate location for insertion.
-		i = ht.root
+		i = ht.root.Load()
 		hashShift = 8 * ptrSize
+		haveInsertPoint := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
@@ -85,6 +114,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 			n = slot.Load()
 			if n == nil {
 				// We found a nil slot which is a candidate for insertion.
+				haveInsertPoint = true
 				break
 			}
 			if n.isEntry {
@@ -94,11 +124,12 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 				if v, ok := n.entry().lookup(key); ok {
 					return v, true
 				}
+				haveInsertPoint = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !haveInsertPoint {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
@@ -174,61 +205,200 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 	return &top.node
 }
 
-// CompareAndDelete deletes the entry for key if its value is equal to old.
-//
-// If there is no current value for key in the map, CompareAndDelete returns false
-// (even if the old value is the nil interface value).
-func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+// Store sets the value for a key.
+func (ht *HashTrieMap[K, V]) Store(key K, old V) {
+	_, _ = ht.Swap(key, old)
+}
+
+// Swap swaps the value for a key and returns the previous value if any.
+// The loaded result reports whether the key was present.
+func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
+	ht.init()
 	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 	var i *indirect[K, V]
 	var hashShift uint
 	var slot *atomic.Pointer[node[K, V]]
 	var n *node[K, V]
 	for {
-		// Find the key or return when there's nothing to delete.
-		i = ht.root
+		// Find the key or a candidate location for insertion.
+		i = ht.root.Load()
 		hashShift = 8 * ptrSize
+		haveInsertPoint := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
 			slot = &i.children[(hash>>hashShift)&nChildrenMask]
 			n = slot.Load()
 			if n == nil {
-				// Nothing to delete. Give up.
-				return
+				// We found a nil slot which is a candidate for insertion,
+				// or an existing entry that we'll replace.
+				haveInsertPoint = true
+				break
 			}
 			if n.isEntry {
-				// We found an entry. Check if it matches.
-				if _, ok := n.entry().lookup(key); !ok {
-					// No match, nothing to delete.
-					return
+				// Swap if the keys compare.
+				old, swapped := n.entry().swap(key, new)
+				if swapped {
+					return old, true
 				}
-				// We've got something to delete.
+				// If we fail, that means we should try to insert.
+				haveInsertPoint = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !haveInsertPoint {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
 		// Grab the lock and double-check what we saw.
 		i.mu.Lock()
 		n = slot.Load()
-		if !i.dead.Load() {
-			if n == nil {
-				// Valid node that doesn't contain what we need. Nothing to delete.
-				i.mu.Unlock()
-				return
-			}
-			if n.isEntry {
-				// What we saw is still true, so we can continue with the delete.
-				break
-			}
+		if (n == nil || n.isEntry) && !i.dead.Load() {
+			// What we saw is still true, so we can continue with the insert.
+			break
 		}
 		// We have to start over.
 		i.mu.Unlock()
 	}
+	// N.B. This lock is held from when we broke out of the outer loop above.
+	// We specifically break this out so that we can use defer here safely.
+	// One option is to break this out into a new function instead, but
+	// there's so much local iteration state used below that this turns out
+	// to be cleaner.
+	defer i.mu.Unlock()
+
+	var zero V
+	var oldEntry *entry[K, V]
+	if n != nil {
+		// Between before and now, something got inserted. Swap if the keys compare.
+		oldEntry = n.entry()
+		old, swapped := oldEntry.swap(key, new)
+		if swapped {
+			return old, true
+		}
+	}
+	// The keys didn't compare, so we're doing an insertion.
+	newEntry := newEntryNode(key, new)
+	if oldEntry == nil {
+		// Easy case: create a new entry and store it.
+		slot.Store(&newEntry.node)
+	} else {
+		// We possibly need to expand the entry already there into one or more new nodes.
+		//
+		// Publish the node last, which will make both oldEntry and newEntry visible. We
+		// don't want readers to be able to observe that oldEntry isn't in the tree.
+		slot.Store(ht.expand(oldEntry, newEntry, hash, hashShift, i))
+	}
+	return zero, false
+}
+
+// CompareAndSwap swaps the old and new values for key
+// if the value stored in the map is equal to old.
+// The value type must be of a comparable type, otherwise CompareAndSwap will panic.
+func (ht *HashTrieMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
+	ht.init()
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	for {
+		// Find the key or return if it's not there.
+		i := ht.root.Load()
+		hashShift := 8 * ptrSize
+		found := false
+		for hashShift != 0 {
+			hashShift -= nChildrenLog2
+
+			slot := &i.children[(hash>>hashShift)&nChildrenMask]
+			n := slot.Load()
+			if n == nil {
+				// Nothing to compare with. Give up.
+				return false
+			}
+			if n.isEntry {
+				// We found an entry. Try to compare and swap directly.
+				return n.entry().compareAndSwap(key, old, new)
+			}
+			i = n.indirect()
+		}
+		if !found {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+	}
+}
+
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
+func (ht *HashTrieMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+	ht.init()
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+
+	// Find a node with the key and compare with it. n != nil if we found the node.
+	i, hashShift, slot, n := ht.find(key, hash)
+	if n == nil {
+		if i != nil {
+			i.mu.Unlock()
+		}
+		return *new(V), false
+	}
+
+	// Try to delete the entry.
+	v, e, loaded := n.entry().loadAndDelete(key)
+	if !loaded {
+		// Nothing was actually deleted, which means the node is no longer there.
+		i.mu.Unlock()
+		return *new(V), false
+	}
+	if e != nil {
+		// We didn't actually delete the whole entry, just one entry in the chain.
+		// Nothing else to do, since the parent is definitely not empty.
+		slot.Store(&e.node)
+		i.mu.Unlock()
+		return v, true
+	}
+	// Delete the entry.
+	slot.Store(nil)
+
+	// Check if the node is now empty (and isn't the root), and delete it if able.
+	for i.parent != nil && i.empty() {
+		if hashShift == 8*ptrSize {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+		hashShift += nChildrenLog2
+
+		// Delete the current node in the parent.
+		parent := i.parent
+		parent.mu.Lock()
+		i.dead.Store(true)
+		parent.children[(hash>>hashShift)&nChildrenMask].Store(nil)
+		i.mu.Unlock()
+		i = parent
+	}
+	i.mu.Unlock()
+	return v, true
+}
+
+// Delete deletes the value for a key.
+func (ht *HashTrieMap[K, V]) Delete(key K) {
+	_, _ = ht.LoadAndDelete(key)
+}
+
+// CompareAndDelete deletes the entry for key if its value is equal to old.
+// The value type must be comparable, otherwise this CompareAndDelete will panic.
+//
+// If there is no current value for key in the map, CompareAndDelete returns false
+// (even if the old value is the nil interface value).
+func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	ht.init()
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+
+	// Find a node with the key. n != nil if we found the node.
+	i, hashShift, slot, n := ht.find(key, hash)
+	if n == nil {
+		if i != nil {
+			i.mu.Unlock()
+		}
+		return false
+	}
+
 	// Try to delete the entry.
 	e, deleted := n.entry().compareAndDelete(key, old)
 	if !deleted {
@@ -248,7 +418,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	// Check if the node is now empty (and isn't the root), and delete it if able.
 	for i.parent != nil && i.empty() {
-		if hashShift == 64 {
+		if hashShift == 8*ptrSize {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 		hashShift += nChildrenLog2
@@ -265,13 +435,82 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	return true
 }
 
-// Enumerate produces all key-value pairs in the map. The enumeration does
-// not represent any consistent snapshot of the map, but is guaranteed
-// to visit each unique key-value pair only once. It is safe to operate
-// on the tree during iteration. No particular enumeration order is
-// guaranteed.
-func (ht *HashTrieMap[K, V]) Enumerate(yield func(key K, value V) bool) {
-	ht.iter(ht.root, yield)
+// find searches the tree for a node that contains key (hash must be the hash of key).
+// If valEqual != nil, then it will also enforce that the values are equal as well.
+//
+// Returns a non-nil node, which will always be an entry, if found.
+//
+// If i != nil then i.mu is locked, and it is the caller's responsibility to unlock it.
+func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
+	for {
+		// Find the key or return if it's not there.
+		i = ht.root.Load()
+		hashShift = 8 * ptrSize
+		found := false
+		for hashShift != 0 {
+			hashShift -= nChildrenLog2
+
+			slot = &i.children[(hash>>hashShift)&nChildrenMask]
+			n = slot.Load()
+			if n == nil {
+				// Nothing to compare with. Give up.
+				i = nil
+				return
+			}
+			if n.isEntry {
+				// We found an entry. Check if it matches.
+				if _, ok := n.entry().lookupWithValue(key); !ok {
+					// No match, comparison failed.
+					i = nil
+					n = nil
+					return
+				}
+				// We've got a match. Prepare to perform an operation on the key.
+				found = true
+				break
+			}
+			i = n.indirect()
+		}
+		if !found {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+
+		// Grab the lock and double-check what we saw.
+		i.mu.Lock()
+		n = slot.Load()
+		if !i.dead.Load() && (n == nil || n.isEntry) {
+			// Either we've got a valid node or the node is now nil under the lock.
+			// In either case, we're done here.
+			return
+		}
+		// We have to start over.
+		i.mu.Unlock()
+	}
+}
+
+// All returns an iterator over each key and value present in the map.
+//
+// The iterator does not necessarily correspond to any consistent snapshot of the
+// HashTrieMap's contents: no key will be visited more than once, but if the value
+// for any key is stored or deleted concurrently (including by yield), the iterator
+// may reflect any mapping for that key from any point during iteration. The iterator
+// does not block other methods on the receiver; even yield itself may call any
+// method on the HashTrieMap.
+func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
+	ht.init()
+	return func(yield func(key K, value V) bool) {
+		ht.iter(ht.root.Load(), yield)
+	}
+}
+
+// Range calls f sequentially for each key and value present in the map.
+// If f returns false, range stops the iteration.
+//
+// This exists for compatibility with sync.Map; All should be preferred.
+// It provides the same guarantees as sync.Map, and All.
+func (ht *HashTrieMap[K, V]) Range(yield func(K, V) bool) {
+	ht.init()
+	ht.iter(ht.root.Load(), yield)
 }
 
 func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) bool) bool {
@@ -288,7 +527,7 @@ func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) 
 		}
 		e := n.entry()
 		for e != nil {
-			if !yield(e.key, e.value) {
+			if !yield(e.key, *e.value.Load()) {
 				return false
 			}
 			e = e.overflow.Load()
@@ -297,11 +536,20 @@ func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) 
 	return true
 }
 
+// Clear deletes all the entries, resulting in an empty HashTrieMap.
+func (ht *HashTrieMap[K, V]) Clear() {
+	ht.init()
+
+	// It's sufficient to just drop the root on the floor, but the root
+	// must always be non-nil.
+	ht.root.Store(newIndirectNode[K, V](nil))
+}
+
 const (
 	// 16 children. This seems to be the sweet spot for
 	// load performance: any smaller and we lose out on
 	// 50% or more in CPU performance. Any larger and the
-	// returns are miniscule (~1% improvement for 32 children).
+	// returns are minuscule (~1% improvement for 32 children).
 	nChildrenLog2 = 4
 	nChildren     = 1 << nChildrenLog2
 	nChildrenMask = nChildren - 1
@@ -335,25 +583,133 @@ type entry[K, V comparable] struct {
 	node[K, V]
 	overflow atomic.Pointer[entry[K, V]] // Overflow for hash collisions.
 	key      K
-	value    V
+	value    atomic.Pointer[V]
 }
 
 func newEntryNode[K, V comparable](key K, value V) *entry[K, V] {
-	return &entry[K, V]{
-		node:  node[K, V]{isEntry: true},
-		key:   key,
-		value: value,
+	e := &entry[K, V]{
+		node: node[K, V]{isEntry: true},
+		key:  key,
 	}
+	e.value.Store(&value)
+	return e
 }
 
 func (e *entry[K, V]) lookup(key K) (V, bool) {
 	for e != nil {
 		if e.key == key {
-			return e.value, true
+			return *e.value.Load(), true
 		}
 		e = e.overflow.Load()
 	}
 	return *new(V), false
+}
+
+func (e *entry[K, V]) lookupWithValue(key K) (V, bool) {
+	for e != nil {
+		oldp := e.value.Load()
+		if e.key == key {
+			return *oldp, true
+		}
+		e = e.overflow.Load()
+	}
+	return *new(V), false
+}
+
+// swap replaces a value in the overflow chain if keys compare equal.
+// Returns the old value, and whether or not anything was swapped.
+//
+// swap must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) swap(key K, newv V) (V, bool) {
+	if head.key == key {
+		vp := new(V)
+		*vp = newv
+		oldp := head.value.Swap(vp)
+		return *oldp, true
+	}
+	i := &head.overflow
+	e := i.Load()
+	for e != nil {
+		if e.key == key {
+			vp := new(V)
+			*vp = newv
+			oldp := e.value.Swap(vp)
+			return *oldp, true
+		}
+		i = &e.overflow
+		e = e.overflow.Load()
+	}
+	var zero V
+	return zero, false
+}
+
+// compareAndSwap replaces a value for a matching key and existing value in the overflow chain.
+// Returns whether or not anything was swapped.
+//
+// compareAndSwap must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) compareAndSwap(key K, oldv, newv V) bool {
+	var vbox *V
+outerLoop:
+	for {
+		oldvp := head.value.Load()
+		if head.key == key && *oldvp == oldv {
+			// Return the new head of the list.
+			if vbox == nil {
+				// Delay explicit creation of a new value to hold newv. If we just pass &newv
+				// to CompareAndSwap, then newv will unconditionally escape, even if the CAS fails.
+				vbox = new(V)
+				*vbox = newv
+			}
+			if head.value.CompareAndSwap(oldvp, vbox) {
+				return true
+			}
+			// We need to restart from the head of the overflow list in case, due to a removal, a node
+			// is moved up the list and we miss it.
+			continue outerLoop
+		}
+		i := &head.overflow
+		e := i.Load()
+		for e != nil {
+			oldvp := e.value.Load()
+			if e.key == key && *oldvp == oldv {
+				if vbox == nil {
+					// Delay explicit creation of a new value to hold newv. If we just pass &newv
+					// to CompareAndSwap, then newv will unconditionally escape, even if the CAS fails.
+					vbox = new(V)
+					*vbox = newv
+				}
+				if e.value.CompareAndSwap(oldvp, vbox) {
+					return true
+				}
+				continue outerLoop
+			}
+			i = &e.overflow
+			e = e.overflow.Load()
+		}
+		return false
+	}
+}
+
+// loadAndDelete deletes an entry in the overflow chain by key. Returns the value for the key, the new
+// entry chain and whether or not anything was loaded (and deleted).
+//
+// loadAndDelete must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) loadAndDelete(key K) (V, *entry[K, V], bool) {
+	if head.key == key {
+		// Drop the head of the list.
+		return *head.value.Load(), head.overflow.Load(), true
+	}
+	i := &head.overflow
+	e := i.Load()
+	for e != nil {
+		if e.key == key {
+			i.Store(e.overflow.Load())
+			return *e.value.Load(), head, true
+		}
+		i = &e.overflow
+		e = e.overflow.Load()
+	}
+	return *new(V), head, false
 }
 
 // compareAndDelete deletes an entry in the overflow chain if both the key and value compare
@@ -361,14 +717,14 @@ func (e *entry[K, V]) lookup(key K) (V, bool) {
 //
 // compareAndDelete must be called under the mutex of the indirect node which e is a child of.
 func (head *entry[K, V]) compareAndDelete(key K, value V) (*entry[K, V], bool) {
-	if head.key == key && head.value == value {
+	if head.key == key && *head.value.Load() == value {
 		// Drop the head of the list.
 		return head.overflow.Load(), true
 	}
 	i := &head.overflow
 	e := i.Load()
 	for e != nil {
-		if e.key == key && e.value == value {
+		if e.key == key && *e.value.Load() == value {
 			i.Store(e.overflow.Load())
 			return head, true
 		}
@@ -421,8 +777,4 @@ func init() {
 	if unsafe.Sizeof(seedType{}) != unsafe.Sizeof(maphash.Seed{}) {
 		panic("concurrent: seedType is not maphash.Seed")
 	}
-}
-
-func seedToSeed(val uintptr) maphash.Seed {
-	return *(*maphash.Seed)(unsafe.Pointer(&val))
 }
