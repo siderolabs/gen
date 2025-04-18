@@ -17,7 +17,7 @@ func TestSendWithContext(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan int, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	assert.True(t, channel.SendWithContext(ctx, ch, 42))

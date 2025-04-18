@@ -232,7 +232,7 @@ func Example_benchConcurrentMap() {
 
 		var m containers.ConcurrentMap[int, func() int]
 
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			variable := 0
 
 			res, _ := m.GetOrCall(10, func() func() int {

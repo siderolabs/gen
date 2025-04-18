@@ -26,22 +26,6 @@ func TestHashTrieMap(t *testing.T) {
 	testHashTrieMap(t, cnc.NewHashTrieMap[string, int])
 }
 
-func TestHashTrieMapBadHash(t *testing.T) {
-	testHashTrieMap(t, func() *cnc.HashTrieMap[string, int] {
-		return cnc.NewBadHashTrieMap[string, int]()
-	})
-}
-
-func TestHashTrieMapTruncHash(t *testing.T) {
-	testHashTrieMap(t, func() *cnc.HashTrieMap[string, int] {
-		// Stub out the good hash function with a different terrible one
-		// (truncated hash). Everything should still work as expected.
-		// This is useful to test independently to catch issues with
-		// near collisions, where only the last few bits of the hash differ.
-		return cnc.NewTruncHashTrieMap[string, int]()
-	})
-}
-
 func testHashTrieMap(t *testing.T, newMap func() *cnc.HashTrieMap[string, int]) {
 	t.Run("LoadEmpty", func(t *testing.T) {
 		m := newMap()

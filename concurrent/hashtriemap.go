@@ -13,7 +13,6 @@ package concurrent
 
 import (
 	"hash/maphash"
-	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -32,11 +31,10 @@ func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
 // The zero HashTrieMap is empty and ready to use.
 // It must not be copied after first use.
 type HashTrieMap[K, V comparable] struct {
-	inited  atomic.Uint32
-	initMu  sync.Mutex
-	root    atomic.Pointer[indirect[K, V]]
-	keyHash hashFunc
-	seed    uintptr
+	inited atomic.Uint32
+	initMu sync.Mutex
+	root   atomic.Pointer[indirect[K, V]]
+	seed   maphash.Seed
 }
 
 func (ht *HashTrieMap[K, V]) init() {
@@ -55,25 +53,19 @@ func (ht *HashTrieMap[K, V]) initSlow() {
 		return
 	}
 
-	// Set up root node, derive the hash function for the key, and the
-	// equal function for the value, if any.
-	var m map[K]V
-	mapType := efaceMapOf(m)._type
+	// Set up root node.
 	ht.root.Store(newIndirectNode[K, V](nil))
-	ht.keyHash = mapType.Hasher
-	ht.seed = uintptr(rand.Uint64())
+	ht.seed = maphash.MakeSeed()
 
 	ht.inited.Store(1)
 }
-
-type hashFunc func(unsafe.Pointer, uintptr) uintptr
 
 // Load returns the value stored in the map for a key, or nil if no
 // value is present.
 // The ok result indicates whether value was found in the map.
 func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 
 	i := ht.root.Load()
 	hashShift := 8 * ptrSize
@@ -97,7 +89,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 // The loaded result is true if the value was loaded, false if stored.
 func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 	var i *indirect[K, V]
 	var hashShift uint
 	var slot *atomic.Pointer[node[K, V]]
@@ -174,9 +166,9 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 
 // expand takes oldEntry and newEntry whose hashes conflict from bit 64 down to hashShift and
 // produces a subtree of indirect nodes to hold the two new entries.
-func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uintptr, hashShift uint, parent *indirect[K, V]) *node[K, V] {
+func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uint64, hashShift uint, parent *indirect[K, V]) *node[K, V] {
 	// Check for a hash collision.
-	oldHash := ht.keyHash(unsafe.Pointer(&oldEntry.key), ht.seed)
+	oldHash := maphash.Comparable(ht.seed, oldEntry.key)
 	if oldHash == newHash {
 		// Store the old entry in the new entry's overflow list, then store
 		// the new entry.
@@ -214,7 +206,7 @@ func (ht *HashTrieMap[K, V]) Store(key K, old V) {
 // The loaded result reports whether the key was present.
 func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 	var i *indirect[K, V]
 	var hashShift uint
 	var slot *atomic.Pointer[node[K, V]]
@@ -298,7 +290,7 @@ func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
 // The value type must be of a comparable type, otherwise CompareAndSwap will panic.
 func (ht *HashTrieMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 	for {
 		// Find the key or return if it's not there.
 		i := ht.root.Load()
@@ -329,7 +321,7 @@ func (ht *HashTrieMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
 // The loaded result reports whether the key was present.
 func (ht *HashTrieMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 
 	// Find a node with the key and compare with it. n != nil if we found the node.
 	i, hashShift, slot, n := ht.find(key, hash)
@@ -388,7 +380,7 @@ func (ht *HashTrieMap[K, V]) Delete(key K) {
 // (even if the old value is the nil interface value).
 func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	ht.init()
-	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
+	hash := maphash.Comparable(ht.seed, key)
 
 	// Find a node with the key. n != nil if we found the node.
 	i, hashShift, slot, n := ht.find(key, hash)
@@ -441,7 +433,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 // Returns a non-nil node, which will always be an entry, if found.
 //
 // If i != nil then i.mu is locked, and it is the caller's responsibility to unlock it.
-func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
+func (ht *HashTrieMap[K, V]) find(key K, hash uint64) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
 	for {
 		// Find the key or return if it's not there.
 		i = ht.root.Load()
@@ -754,27 +746,4 @@ func (n *node[K, V]) indirect() *indirect[K, V] {
 	return (*indirect[K, V])(unsafe.Pointer(n))
 }
 
-// noescape hides a pointer from escape analysis. It is the identity function
-// but escape analysis doesn't think the output depends on the input.
-// noescape is inlined and currently compiles down to zero instructions.
-// USE CAREFULLY!
-// This was copied from the runtime.
-//
-//go:nosplit
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
-}
-
 const ptrSize = uint(unsafe.Sizeof(uintptr(0)))
-
-func init() {
-	// copied from [maphash.Seed]
-	type seedType struct {
-		s uint64
-	}
-
-	if unsafe.Sizeof(seedType{}) != unsafe.Sizeof(maphash.Seed{}) {
-		panic("concurrent: seedType is not maphash.Seed")
-	}
-}
