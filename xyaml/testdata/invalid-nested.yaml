@@ -1,0 +1,7 @@
+---
+field: a
+slice:
+  - field: b
+    this: shouldn't be there
+    map:
+      some: value

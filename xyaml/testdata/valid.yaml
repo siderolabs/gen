@@ -1,0 +1,6 @@
+---
+field: a
+slice:
+  - field: b
+    map:
+      some: value
