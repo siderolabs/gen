@@ -22,14 +22,15 @@ func UnmarshalStrict[T any](data []byte, t T) error {
 		return err
 	}
 
-	if err := checkUnknownKeys(t, &node); err != nil {
+	if err := CheckUnknownKeys(t, &node); err != nil {
 		return err
 	}
 
 	return node.Decode(t)
 }
 
-func checkUnknownKeys(t any, node *yaml.Node) error {
+// CheckUnknownKeys finds if the node has any extra keys which do not exist in t.
+func CheckUnknownKeys(t any, node *yaml.Node) error {
 	if node.Kind == yaml.DocumentNode {
 		if len(node.Content) == 0 {
 			return nil
