@@ -8,8 +8,9 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/siderolabs/gen/xyaml"
 	"github.com/stretchr/testify/require"
+
+	"github.com/siderolabs/gen/xyaml"
 )
 
 type A struct {
