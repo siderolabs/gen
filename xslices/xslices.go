@@ -140,3 +140,23 @@ func CopyN[S ~[]V, V any](s S, n int) S {
 
 	return result
 }
+
+// Deduplicate removes duplicate elements from the slice based on the key function provided.
+func Deduplicate[T any, K comparable](items []T, keyFunc func(T) K) []T {
+	var (
+		result []T
+		seen   = make(map[K]struct{})
+	)
+
+	for _, item := range items {
+		k := keyFunc(item)
+
+		if _, ok := seen[k]; !ok {
+			seen[k] = struct{}{}
+
+			result = append(result, item)
+		}
+	}
+
+	return result
+}

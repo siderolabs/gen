@@ -145,3 +145,75 @@ func TestFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestDeduplicate(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		slice []int
+	}
+
+	tests := map[string]struct {
+		args args
+		want []int
+	}{
+		"nil": {
+			args: args{
+				slice: nil,
+			},
+			want: nil,
+		},
+		"empty": {
+			args: args{
+				slice: []int{},
+			},
+			want: nil,
+		},
+		"single": {
+			args: args{
+				slice: []int{2},
+			},
+			want: []int{2},
+		},
+		"sorted duplicates": {
+			args: args{
+				slice: []int{2, 2, 2, 3, 3, 3},
+			},
+			want: []int{2, 3},
+		},
+		"unsorted duplicates": {
+			args: args{
+				slice: []int{3, 2, 2, 3, 2, 3},
+			},
+			want: []int{3, 2},
+		},
+		"no duplicates": {
+			args: args{
+				slice: []int{1, 2, 3, 4, 5},
+			},
+			want: []int{1, 2, 3, 4, 5},
+		},
+		"mixed duplicates": {
+			args: args{
+				slice: []int{1, 2, 2, 3, 4, 4, 5, 5, 6},
+			},
+			want: []int{1, 2, 3, 4, 5, 6},
+		},
+		"all duplicates": {
+			args: args{
+				slice: []int{2, 2, 2, 2, 2},
+			},
+			want: []int{2},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			got := xslices.Deduplicate(tt.args.slice, func(i int) int { return i })
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
