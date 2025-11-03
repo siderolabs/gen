@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-10-17T10:02:24Z by kres 34e72ac.
+# Generated on 2025-11-03T15:17:53Z by kres cd5a938.
 
 *
 !channel
@@ -10,13 +10,16 @@
 !maps
 !optional
 !pair
+!panicsafe
 !value
 !xerrors
 !xiter
 !xslices
 !xtesting
+!xyaml
 !go.mod
 !go.sum
 !.golangci.yml
 !README.md
 !.markdownlint.json
+!hack/govulncheck.sh

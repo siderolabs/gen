@@ -6,7 +6,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//nolint:cyclop,gocognit,gocyclo,maintidx,nlreturn,predeclared,revive,unparam,wsl
+//nolint:cyclop,gocognit,gocyclo,maintidx,nlreturn,predeclared,revive,unparam,wsl_v5
 package concurrent_test
 
 import (

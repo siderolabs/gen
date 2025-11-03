@@ -8,7 +8,7 @@
 
 // Package concurrent provides hash-trie implementation for concurrent use.
 //
-//nolint:govet,nakedret,nlreturn,predeclared,revive,staticcheck,unused,wastedassign,wsl
+//nolint:govet,nakedret,nlreturn,predeclared,revive,staticcheck,unused,wastedassign,wsl_v5
 package concurrent
 
 import (
@@ -447,7 +447,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uint64) (i *indirect[K, V], hashSh
 			if n == nil {
 				// Nothing to compare with. Give up.
 				i = nil
-				return
+				return i, hashShift, slot, n
 			}
 			if n.isEntry {
 				// We found an entry. Check if it matches.
@@ -455,7 +455,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uint64) (i *indirect[K, V], hashSh
 					// No match, comparison failed.
 					i = nil
 					n = nil
-					return
+					return i, hashShift, slot, n
 				}
 				// We've got a match. Prepare to perform an operation on the key.
 				found = true
@@ -473,7 +473,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uint64) (i *indirect[K, V], hashSh
 		if !i.dead.Load() && (n == nil || n.isEntry) {
 			// Either we've got a valid node or the node is now nil under the lock.
 			// In either case, we're done here.
-			return
+			return i, hashShift, slot, n
 		}
 		// We have to start over.
 		i.mu.Unlock()

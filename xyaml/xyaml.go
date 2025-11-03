@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // UnmarshalStrict decodes YAML document validating that there are no extra fields found.
@@ -109,7 +109,7 @@ func structKeys(typ reflect.Type) (map[string][]int, reflect.Type) {
 
 var typeOfInterfaceAny = reflect.TypeOf((*any)(nil)).Elem()
 
-//nolint:gocyclo,cyclop
+//nolint:gocyclo,cyclop,gocognit
 func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, err error) {
 	for typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
@@ -117,7 +117,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 
 	// anything can be unmarshaled into `interface{}`
 	if typ == typeOfInterfaceAny {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	switch spec.Kind { //nolint:exhaustive // not checking for scalar types
@@ -152,7 +152,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 						unknown = map[string]any{}
 					}
 
-					unknown.(map[string]any)[key] = spec.Content[i+1]
+					unknown.(map[string]any)[key] = spec.Content[i+1] //nolint:errcheck,forcetypeassert
 
 					continue
 				}
@@ -173,7 +173,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 					unknown = map[string]any{}
 				}
 
-				unknown.(map[string]any)[key] = innerUnknown
+				unknown.(map[string]any)[key] = innerUnknown //nolint:errcheck,forcetypeassert
 			}
 		}
 	case yaml.SequenceNode:
@@ -192,7 +192,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 					unknown = []any{}
 				}
 
-				unknown = append(unknown.([]any), innerUnknown)
+				unknown = append(unknown.([]any), innerUnknown) //nolint:errcheck,forcetypeassert
 			}
 		}
 	}

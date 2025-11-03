@@ -1,8 +1,8 @@
-# syntax = docker/dockerfile-upstream:1.15.1-labs
+# syntax = docker/dockerfile-upstream:1.19.0-labs
 
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2025-05-05T16:38:32Z by kres 1a0156b.
+# Generated on 2025-11-03T15:17:53Z by kres cd5a938.
 
 ARG TOOLCHAIN
 
@@ -10,16 +10,16 @@ ARG TOOLCHAIN
 FROM scratch AS generate
 
 # runs markdownlint
-FROM docker.io/oven/bun:1.2.11-alpine AS lint-markdown
+FROM docker.io/oven/bun:1.3.0-alpine AS lint-markdown
 WORKDIR /src
-RUN bun i markdownlint-cli@0.44.0 sentences-per-line@0.3.0
+RUN bun i markdownlint-cli@0.45.0 sentences-per-line@0.3.0
 COPY .markdownlint.json .
 COPY ./README.md ./README.md
 RUN bunx markdownlint --ignore "CHANGELOG.md" --ignore "**/node_modules/**" --ignore '**/hack/chglog/**' --rules sentences-per-line .
 
 # base toolchain image
 FROM --platform=${BUILDPLATFORM} ${TOOLCHAIN} AS toolchain
-RUN apk --update --no-cache add bash curl build-base protoc protobuf-dev
+RUN apk --update --no-cache add bash build-base curl jq protoc protobuf-dev
 
 # build tools
 FROM --platform=${BUILDPLATFORM} toolchain AS tools
@@ -58,11 +58,13 @@ COPY ./ensure ./ensure
 COPY ./maps ./maps
 COPY ./optional ./optional
 COPY ./pair ./pair
+COPY ./panicsafe ./panicsafe
 COPY ./value ./value
 COPY ./xerrors ./xerrors
 COPY ./xiter ./xiter
 COPY ./xslices ./xslices
 COPY ./xtesting ./xtesting
+COPY ./xyaml ./xyaml
 RUN --mount=type=cache,target=/go/pkg,id=gen/go/pkg go list -mod=readonly all >/dev/null
 
 # runs gofumpt
@@ -76,22 +78,35 @@ COPY .golangci.yml .
 ENV GOGC=50
 RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/root/.cache/golangci-lint,id=gen/root/.cache/golangci-lint,sharing=locked --mount=type=cache,target=/go/pkg,id=gen/go/pkg golangci-lint run --config .golangci.yml
 
+# runs golangci-lint fmt
+FROM base AS lint-golangci-lint-fmt-run
+WORKDIR /src
+COPY .golangci.yml .
+ENV GOGC=50
+RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/root/.cache/golangci-lint,id=gen/root/.cache/golangci-lint,sharing=locked --mount=type=cache,target=/go/pkg,id=gen/go/pkg golangci-lint fmt --config .golangci.yml
+RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/root/.cache/golangci-lint,id=gen/root/.cache/golangci-lint,sharing=locked --mount=type=cache,target=/go/pkg,id=gen/go/pkg golangci-lint run --fix --issues-exit-code 0 --config .golangci.yml
+
 # runs govulncheck
 FROM base AS lint-govulncheck
 WORKDIR /src
-RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg govulncheck ./...
+COPY --chmod=0755 hack/govulncheck.sh ./hack/govulncheck.sh
+RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg ./hack/govulncheck.sh ./...
 
 # runs unit-tests with race detector
 FROM base AS unit-tests-race
 WORKDIR /src
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg --mount=type=cache,target=/tmp,id=gen/tmp CGO_ENABLED=1 go test -v -race -count 1 ${TESTPKGS}
+RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg --mount=type=cache,target=/tmp,id=gen/tmp CGO_ENABLED=1 go test -race ${TESTPKGS}
 
 # runs unit-tests
 FROM base AS unit-tests-run
 WORKDIR /src
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg --mount=type=cache,target=/tmp,id=gen/tmp go test -v -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} -count 1 ${TESTPKGS}
+RUN --mount=type=cache,target=/root/.cache/go-build,id=gen/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=gen/go/pkg --mount=type=cache,target=/tmp,id=gen/tmp go test -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} ${TESTPKGS}
+
+# clean golangci-lint fmt output
+FROM scratch AS lint-golangci-lint-fmt
+COPY --from=lint-golangci-lint-fmt-run /src .
 
 FROM scratch AS unit-tests
 COPY --from=unit-tests-run /src/coverage.txt /coverage-unit-tests.txt
