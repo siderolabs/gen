@@ -76,9 +76,9 @@ func structKeys(typ reflect.Type) (map[string][]int, reflect.Type) {
 			inlined := false
 
 			if idx >= 0 {
-				options := strings.Split(tag[idx+1:], ",")
+				options := strings.SplitSeq(tag[idx+1:], ",")
 
-				for _, opt := range options {
+				for opt := range options {
 					if opt == "inline" {
 						inlined = true
 					}
@@ -113,10 +113,10 @@ type obsoleteUnmarshaler interface {
 }
 
 var (
-	typeOfInterfaceAny = reflect.TypeOf((*any)(nil)).Elem()
+	typeOfInterfaceAny = reflect.TypeFor[any]()
 
-	typeOfUnmarshaler         = reflect.TypeOf((*yaml.Unmarshaler)(nil)).Elem()
-	typeOfObsoleteUnmarshaler = reflect.TypeOf((*obsoleteUnmarshaler)(nil)).Elem()
+	typeOfUnmarshaler         = reflect.TypeFor[yaml.Unmarshaler]()
+	typeOfObsoleteUnmarshaler = reflect.TypeFor[obsoleteUnmarshaler]()
 )
 
 // implementsUnmarshaler checks if the type (or a pointer to it) has a custom YAML unmarshaler.
@@ -163,7 +163,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node, stack anchorSta
 
 	defer leave()
 
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 

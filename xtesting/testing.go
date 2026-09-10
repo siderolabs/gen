@@ -7,6 +7,6 @@ package xtesting
 
 // T is an interface wrapper around *testing.T.
 type T interface {
-	Errorf(format string, args ...interface{})
+	Errorf(format string, args ...any)
 	FailNow()
 }

@@ -10,6 +10,7 @@ package xbytes
 import (
 	"bytes"
 	"iter"
+	"slices"
 	"unicode/utf8"
 )
 
@@ -28,7 +29,7 @@ func Lines(s []byte) iter.Seq[[]byte] {
 				line, s = s, nil
 			}
 
-			if !yield(line[:len(line):len(line)]) {
+			if !yield(slices.Clip(line)) {
 				return
 			}
 		}
@@ -64,14 +65,14 @@ func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
 			}
 
 			frag := s[:i+sepSave]
-			if !yield(frag[:len(frag):len(frag)]) {
+			if !yield(slices.Clip(frag)) {
 				return
 			}
 
 			s = s[i+len(sep):]
 		}
 
-		yield(s[:len(s):len(s)])
+		yield(slices.Clip(s))
 	}
 }
 
