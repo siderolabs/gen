@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/siderolabs/gen/xyaml"
 )
@@ -34,6 +35,11 @@ func (a *argValue) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	return unmarshal(&a.list)
+}
+
+type withAny struct {
+	Any   any `yaml:"any"`
+	Slice []A `yaml:"slice"`
 }
 
 type withArgs struct {
@@ -113,6 +119,46 @@ func TestUnmarshalStrictCustomUnmarshaler(t *testing.T) {
 			var w withArgs
 
 			require.NoError(t, xyaml.UnmarshalStrict([]byte(tt.data), &w))
+		})
+	}
+}
+
+// TestCheckUnknownKeysAlias checks that aliased nodes are walked the same way as inline ones.
+func TestCheckUnknownKeysAlias(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		data string
+		err  string
+	}{
+		{
+			name: "alias to valid mapping",
+			data: "any: &m\n  field: x\nslice:\n  - *m\n",
+		},
+		{
+			name: "alias to mapping with unknown key",
+			data: "any: &m\n  field: x\n  bogus: 1\nslice:\n  - *m\n",
+			err:  "bogus",
+		},
+		{
+			name: "self-referencing anchor",
+			data: "slice: &s\n  - slice: *s\n",
+			err:  `anchor "s" value contains itself`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var node yaml.Node
+
+			require.NoError(t, yaml.Unmarshal([]byte(tt.data), &node))
+
+			err := xyaml.CheckUnknownKeys(&withAny{}, &node)
+
+			if tt.err != "" {
+				require.ErrorContains(t, err, tt.err)
+
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }

@@ -39,7 +39,7 @@ func CheckUnknownKeys(t any, node *yaml.Node) error {
 		node = node.Content[0]
 	}
 
-	unknown, err := internalCheckUnknownKeys(reflect.TypeOf(t), node)
+	unknown, err := internalCheckUnknownKeys(reflect.TypeOf(t), node, anchorStack{})
 	if err != nil {
 		return err
 	}
@@ -127,8 +127,42 @@ func implementsUnmarshaler(typ reflect.Type) bool {
 		typ.Implements(typeOfObsoleteUnmarshaler) || ptr.Implements(typeOfObsoleteUnmarshaler)
 }
 
+// anchorStack tracks anchored nodes on the current walk path to detect alias cycles.
+//
+// The YAML parser builds a node tree for a self-referencing anchor (e.g. `a: &x {b: *x}`),
+// only failing later while decoding it, so a walker following aliases has to guard against cycles itself.
+type anchorStack map[*yaml.Node]struct{}
+
+// enter resolves an alias node to its target and marks an anchored node as being walked.
+//
+// The returned function must be called once the walk of the node is finished.
+func (s anchorStack) enter(spec *yaml.Node) (*yaml.Node, func(), error) {
+	if spec.Kind == yaml.AliasNode && spec.Alias != nil {
+		spec = spec.Alias
+	}
+
+	if spec.Anchor == "" {
+		return spec, func() {}, nil
+	}
+
+	if _, visited := s[spec]; visited {
+		return nil, nil, fmt.Errorf("anchor %q value contains itself", spec.Anchor)
+	}
+
+	s[spec] = struct{}{}
+
+	return spec, func() { delete(s, spec) }, nil
+}
+
 //nolint:gocyclo,cyclop,gocognit
-func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, err error) {
+func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node, stack anchorStack) (unknown any, err error) {
+	spec, leave, err := stack.enter(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	defer leave()
+
 	for typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 	}
@@ -186,7 +220,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 			}
 
 			// validate nested values
-			innerUnknown, err := internalCheckUnknownKeys(elemType, spec.Content[i+1])
+			innerUnknown, err := internalCheckUnknownKeys(elemType, spec.Content[i+1], stack)
 			if err != nil {
 				return unknown, err
 			}
@@ -210,7 +244,7 @@ func internalCheckUnknownKeys(typ reflect.Type, spec *yaml.Node) (unknown any, e
 		}
 
 		for i := range len(spec.Content) {
-			innerUnknown, err := internalCheckUnknownKeys(typ.Elem(), spec.Content[i])
+			innerUnknown, err := internalCheckUnknownKeys(typ.Elem(), spec.Content[i], stack)
 			if err != nil {
 				return unknown, err
 			}
